@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Gemini Voice Chat</title>
+</head>
+<body>
+  <h1>🎤 Talk to Gemini</h1>
+  <button id="callBtn">Start Call</button>
+  <p id="status">Press start and speak...</p>
+  <p id="data">Press start and speak...</p>
+  <p id="console">Press start and speak...</p>
+  <p id="consoleData">Press start and speak...</p>
+  <p><b>Gemini:</b> <span id="reply"></span></p>
+  <audio id="player" controls autoplay></audio>
+
+<button id="testBtn">Test POST</button>
+
+<script>
+let recognition;
+let isListening = false;
+
+document.getElementById("callBtn").onclick = () => {
+  if (!isListening) startRecognition();
+  else stopRecognition();
+};
+
+document.getElementById("testBtn").onclick = async () => {
+  let formData = new FormData();
+  document.getElementById("status").innerText = "clicked";
+  formData.append("text", "hello from browser");
+  let entries = Array.from(formData.entries()).map(([k,v]) => `${k}=${v}`).join(", ");
+  document.getElementById("status").innerText = "FormData: " + entries;
+  try {
+    let res = await fetch("/chat/", { method: "POST", body: formData });
+
+    document.getElementById("console").innerText = res;
+    document.getElementById("status").innerText += "\nResponse status: " + res.status;
+
+    if (!res.ok) {
+      throw new Error("Network response not OK");
+    }
+
+    let data = await res.json();
+    document.getElementById("consoleData").innerText = data;
+    document.getElementById("data").innerText = "Reply: " + JSON.stringify(data);
+  } catch (err) {
+      console.error("Fetch error:", err);
+      document.getElementById("data").innerText = "Error: " + err;
+  }
+};
+
+function startRecognition() {
+  recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+  recognition.lang = "id-ID";
+  recognition.interimResults = true;
+  recognition.continuous = false; // stops when silence detected
+
+  recognition.onstart = () => {
+    isListening = true;
+    document.getElementById("status").innerText = "Listening...";
+    document.getElementById("callBtn").innerText = "Stop";
+  };
+
+  recognition.onresult = async (event) => {
+      let result = event.results[event.resultIndex];
+      if (!result.isFinal) return; // ignore partial results
+
+      let text = result[0].transcript;
+      document.getElementById("status").innerText = "You: " + text;
+
+      let formData = new FormData();
+      formData.append("text", text);
+
+      let res = await fetch("/chat/", { method: "POST", body: formData });
+      let data = await res.json();
+      document.getElementById("reply").innerText = data.reply;
+
+      let audioBlob = new Blob([Uint8Array.from(atob(data.audio), c=> c.charCodeAt(0))], {type:"audio/mpeg"});
+      let url = URL.createObjectURL(audioBlob);
+      document.getElementById("player").src = url;
+  };
+
+  recognition.onerror = (event) => {
+    document.getElementById("status").innerText = "Error: " + event.error;
+  };
+
+  recognition.onnomatch = () => {
+    document.getElementById("status").innerText = "Could not understand speech.";
+  };
+
+  recognition.onend = () => {
+    isListening = false;
+    document.getElementById("status").innerText = "Stopped listening.";
+    document.getElementById("callBtn").innerText = "Start Call";
+  };
+
+  recognition.onaudiostart = () => document.getElementById("status").innerText = "AUDIO RECORDED.";
+  recognition.onspeechstart = () => document.getElementById("status").innerText = "SPEECH DETECTED.";
+  recognition.onspeechend = () => document.getElementById("status").innerText = "SPEECH ENDED.";
+  recognition.onaudioend = () => document.getElementById("status").innerText = "AUDIO END.";
+
+  recognition.start();
+}
+
+function stopRecognition() {
+  recognition.stop();
+}
+</script>
+</body>
+</html>
