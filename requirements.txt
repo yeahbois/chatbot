@@ -5,3 +5,4 @@ google-generativeai
 SpeechRecognition
 gTTS
 pydub
+python-dotenv

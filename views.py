@@ -1,15 +1,14 @@
 import io
 import base64
+import os
 from django.http import JsonResponse
 from django.shortcuts import render
 from gtts import gTTS
 import google.generativeai as genai
 from django.views.decorators.csrf import csrf_exempt
 
-API_KEY = "AIzaSyAIhZJgMsg3Yu4_R3gKfgmrWZv19VVuqOE"
-
 # configure Gemini
-genai.configure(api_key=API_KEY)
+genai.configure(api_key=os.environ["GOOGLE_API_KEY"])
 model = genai.GenerativeModel("gemini-2.0-flash")
 conv = model.start_chat()
 
